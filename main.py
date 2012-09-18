@@ -2,10 +2,10 @@ import logging, os
 from argparse import ArgumentParser
 from time import sleep
 
-import settings
+from bootstrap import settings
 from iwconfig import select_if, NeedInterface
 
-
+print settings
 def main():
     if os.getuid() != 0:
         raise Exception('Need to be root')
