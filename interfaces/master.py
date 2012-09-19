@@ -1,6 +1,6 @@
 from helpers import LoopThread
 
-class Thread(object):
+class Thread(LoopThread):
     LOOP_SLEEP = 60
     def __init__(self, interface):
         super(Thread, self).__init__()

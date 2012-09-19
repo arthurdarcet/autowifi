@@ -20,6 +20,7 @@ class Thread(LoopThread):
             pass
             # TODO initiate connexion
             # self.essid = 'blah'
+        self.interface.ready.set()
         return shared.has_internet.is_set()
 
     def on_internet(self):

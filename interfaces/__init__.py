@@ -7,15 +7,16 @@ from interfaces.master import Thread as MasterThread
 from interfaces.managed import Thread as ManagedThread
 
 
-class If(object):
+class Interface(object):
     thread = None
+    dummy = False
 
-    def __init__(self, dev, dummy=False):
+    def __init__(self, dev=None):
         self.dev = dev
-        self.dummy = dummy
+        self.ready = threading.Event()
 
     def __str__(self):
-        return self.dev
+        return str(self.dev)
 
     def param(self, param):
         params = [p.split(':',1) for p in iwconfig(self.dev).split('  ') if ':' in p]
@@ -46,43 +47,45 @@ class InterfacesSelection(LoopThread):
     TO_USE_IF = None
     USED_IF = []
 
-    interfaces = {
+    _interfaces = {
         'master': None,
         'monitor': None,
         'managed': None,
     }
-    has = {
-        'master': threading.Event(),
-        'monitor': threading.Event(),
-        'managed': threading.Event(),
-    }
+    def __init__(self):
+        super(InterfacesSelection, self).__init__()
+        self['master'] = Interface()
+        self['monitor'] = Interface()
+        self['managed'] = Interface()
 
     def _run(self):
         for i in self._available_ifs():
             for label in ('master', 'monitor', 'managed'):
-                if self.interfaces[label] is None and i.mode(label):
-                    self.interfaces[label] = i
+                if self[label].dev is None and Interface(i).mode(label):
+                    self[label].dev = i
                     break
 
-        if not self.interfaces['monitor'] and self.interfaces['master']:
-            if self.interfaces['master'].mode('monitor'):
-                logging.info('%s is supporting mode master, but no other interface support the mode monitor', self.interfaces['master'])
-                self.interfaces['monitor'] = self.interfaces['master']
-                self.interfaces['master'] = None
+        if not self['monitor'].dev and self['master'].dev:
+            if self['master'].mode('monitor'):
+                logging.info('%s is supporting mode master, but no other interface support the mode monitor', self['master'])
+                self['monitor'].dev = self['master'].dev
+                self['master'].dev = None
 
-        if self.interfaces['managed'] is None and settings.DUMMY_MANAGED_IF is not None:
-            self.interfaces['managed'] = If(settings.DUMMY_MANAGED_IF, dummy=True)
+        if self['managed'].dev is None and settings.DUMMY_MANAGED_IF is not None:
+            self['managed'].dev = settings.DUMMY_MANAGED_IF
+            self['managed'].dummy = True
 
 
         for label in ('master', 'monitor', 'managed'):
-            if not self.has[label].is_set() and self.interfaces[label] is not None:
-                logging.info('Using %s as the %s interface', self.interfaces[label], label)
+            if self[label].dev is not None and not self[label].ready.is_set():
+                logging.info('Using %s as the %s interface', self[label], label)
                 if label in InterfacesSelection.THREADS:
-                    self.interfaces[label].thread = InterfacesSelection.THREADS[label](self.interfaces[label])
-                    self.interfaces[label].thread.start()
-                self.has[label].set()
+                    self[label].thread = InterfacesSelection.THREADS[label](self[label])
+                    self[label].thread.start()
+                else:
+                    self[label].ready.set()
 
-        if not self.has['monitor'].is_set():
+        if not self['monitor'].dev:
             logging.critical('No monitor-able interface were found. Trying again in %s seconds', self.LOOP_SLEEP)
 
         return True
@@ -93,10 +96,16 @@ class InterfacesSelection(LoopThread):
                 dev = i.split('IEEE 802', 1)[0].strip()
                 if (not self.TO_USE_IF or dev in self.TO_USE_IF) and dev not in self.USED_IF and dev != settings.DUMMY_MANAGED_IF:
                     self.USED_IF.append(dev)
-                    yield If(dev)
+                    yield dev
 
     def __str__(self):
-        return ', '.join('{}: {}'.format(l,i) for l,i in self.interfaces.items())
+        return ', '.join('{}: {}'.format(l,i) for l,i in self._interfaces.items())
+
+    def __getitem__(self, item):
+        return self._interfaces[item]
+
+    def __setitem__(self, item, val):
+        self._interfaces[item] = val
 
 
 if not hasattr(shared, 'interfaces'):

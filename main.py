@@ -1,6 +1,7 @@
 import os
 from argparse import ArgumentParser
 
+from aircrack.airodump import select_target_network
 from helpers import settings, shared
 from interfaces import InterfacesSelection
 from networks import update_local, update_remote
@@ -14,7 +15,8 @@ def main():
     args = parser.parse_args()
     shared.interfaces.TO_USE_IF = [dev.strip() for dev in args.use_if.split(',') if dev]
     shared.interfaces.start()
-#    shared.interfaces.has_monitor.wait()
+
+    select_target_network()
 
 if __name__ == '__main__':
     main()
