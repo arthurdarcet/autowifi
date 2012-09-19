@@ -2,7 +2,7 @@ import logging
 
 from storm.locals import Bool, Int, Unicode
 
-from bootstrap import local_db, remote_db, settings
+from helpers import local_db, remote_db, settings
 
 
 local_db.execute("""
@@ -39,6 +39,7 @@ class Network(object):
 
 
 def update_local():
+    logging.info(u'Updating local database')
     remote = remote_db()
     for remote_net in remote.find(Network):
         if remote_net.ap_mac.startswith('_'):
@@ -61,3 +62,10 @@ def update_local():
             local_db.add(local_net)
     local_db.commit()
     remote.close()
+
+def update_remote():
+    logging.info(u'Updating remote database')
+
+def update_db():
+    update_local()
+    update_remote()

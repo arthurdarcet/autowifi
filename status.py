@@ -1,6 +1,6 @@
 from flask import Flask
 
-from bootstrap import settings
+from helpers import settings
 
 app = Flask(__name__)
 
