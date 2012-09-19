@@ -4,8 +4,8 @@ from storm.locals import Bool, Int, Unicode
 
 from helpers import local_db, remote_db, settings
 
-
-local_db.execute("""
+local = local_db()
+local.execute("""
 CREATE TABLE IF NOT EXISTS `networks` (
   `ap_mac` varchar(255),
   `essid` varchar(255) NOT NULL,
@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS `networks` (
   PRIMARY KEY (`ap_mac`, `essid`)
 );
 """)
-local_db.commit()
-
+local.commit()
+del local
 
 class Network(object):
     __storm_table__ = 'networks'
@@ -41,15 +41,16 @@ class Network(object):
 def update_local():
     logging.info(u'Updating local database')
     remote = remote_db()
+    local = local_db()
     for remote_net in remote.find(Network):
         if remote_net.ap_mac.startswith('_'):
-            local_net = local_db.find(Network, essid=remote_net.essid, key=remote_net.key).one()
+            local_net = local.find(Network, essid=remote_net.essid, key=remote_net.key).one()
             if local_net and not local_net.ap_mac.startswith('_'):
                 logging.info(u'Updating MAC address of %s with local data', local_net)
                 remote_net.ap_mac = local_net.ap_mac
                 remote.commit()
 
-        local_net = local_db.get(Network, remote_net.ap_mac)
+        local_net = local.get(Network, remote_net.ap_mac)
         if local_net and local_net != remote_net:
             logging.warn(u'Overriding local %s with remote data', local_net)
             local_net.ap_mac = remote_net.ap_mac
@@ -59,9 +60,8 @@ def update_local():
         elif not local_net:
             logging.info(u'Retrieved %s from remote database', remote_net)
             local_net = Network(remote_net.ap_mac, remote_net.essid, remote_net.key, True)
-            local_db.add(local_net)
-    local_db.commit()
-    remote.close()
+            local.add(local_net)
+    local.commit()
 
 def update_remote():
     logging.info(u'Updating remote database')

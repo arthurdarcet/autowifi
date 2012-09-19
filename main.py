@@ -10,9 +10,9 @@ def main():
     if os.getuid() != 0:
         raise Exception('Need to be root')
     parser = ArgumentParser()
-    parser.add_argument('-i', '--use-if', default=None, help='List of comma separated interfaces the script can use. If empty all interfaces are used. Default: empty.')
+    parser.add_argument('-i', '--use-if', default='', help='List of comma separated interfaces the script can use. If empty all interfaces are used. Default: empty.')
     args = parser.parse_args()
-    InterfacesSelection.TO_USE_IF = [dev.strip() for dev in args.use_if.split(',')]
+    shared.interfaces.TO_USE_IF = [dev.strip() for dev in args.use_if.split(',') if dev]
     shared.interfaces.start()
 #    shared.interfaces.has_monitor.wait()
 
