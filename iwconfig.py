@@ -42,7 +42,10 @@ def select_if(use_if=None):
     for i in ifs:
         if i.mode('monitor'):
             monitor_if = i
+            ifs.remove(i)
             break
+    managed_if = ifs[0] if ifs else None
+
     if not monitor_if and master_if:
         if master_if.mode('monitor'):
             monitor_if = master_if
@@ -50,4 +53,4 @@ def select_if(use_if=None):
     if not monitor_if:
         raise NeedInterface
 
-    return (monitor_if, master_if)
+    return (monitor_if, master_if, managed_if)
