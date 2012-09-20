@@ -11,11 +11,22 @@ local_db = lambda: Store(create_database(settings.LOCAL_DB))
 remote_db = lambda: Store(create_database(settings.REMOTE_DB))
 logging.basicConfig(level=logging.DEBUG)
 
-class shared(object):
-    has_internet = threading.Event()
-
 class LoopThread(threading.Thread):
+    LOOP_SLEEP = -1
+    def _run(self):
+        return True
+    def _once(self):
+        pass
     def run(self):
+        if self.LOOP_SLEEP < 0:
+            self._run()
+            self._once()
+            return
+        once = False
         while True:
-            if self._run():
+            b = self._run()
+            if not once:
+                self._once()
+                once = True
+            if b:
                 sleep(self.LOOP_SLEEP)

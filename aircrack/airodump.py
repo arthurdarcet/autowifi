@@ -1,10 +1,20 @@
+import threading
+
 from sh import airodump_ng
 
-from helpers import shared
+from networks import Network
 
-def _process(line):
-    print repr(line)
 
-def select_target_network():
-    shared.interfaces['monitor'].ready.wait()
-    airodump_ng('--encrypt wep', shared.interfaces['monitor'].dev, _out=_process)
+class Thread(threading.Thread):
+    def __init__(self, interface):
+        super(Thread, self).__init__()
+        self.interface = interface
+
+    def run(self):
+        self.interface.ready.wait()
+        self.target_network = self.select_target_network()
+
+    def select_target_network(self):
+        for line in airodump_ng('--encrypt', 'wep', self.interface.dev, _iter=True):
+            print repr(line)
+        return Network(None, None)

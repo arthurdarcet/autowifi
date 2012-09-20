@@ -1,67 +1,29 @@
-import logging, threading
+import logging
 
-from sh import ifconfig, iwconfig
+from sh import iwconfig
 
-from helpers import settings, shared, LoopThread
-from interfaces.master import Thread as MasterThread
-from interfaces.managed import Thread as ManagedThread
-
-
-class Interface(object):
-    thread = None
-    dummy = False
-
-    def __init__(self, dev=None):
-        self.dev = dev
-        self.ready = threading.Event()
-
-    def __str__(self):
-        return str(self.dev)
-
-    def param(self, param):
-        params = [p.split(':',1) for p in iwconfig(self.dev).split('  ') if ':' in p]
-        for a,b in params:
-            if a.lower() == param:
-                return b.lower()
-        raise KeyError
-
-    def mode(self, mode=None):
-        if not mode:
-            return self.param('mode')
-        try:
-            ifconfig(self.dev, 'down')
-            iwconfig(self.dev, 'mode', mode)
-            ifconfig(self.dev, 'up')
-            return self.mode() == mode
-        except:
-            return False
+from helpers import settings, LoopThread
+from interfaces.generic import Interface
+from interfaces.managed import ManagedInterface
+from interfaces.master import MasterInterface
 
 
 class InterfacesSelection(LoopThread):
-    THREADS = {
-        'master': MasterThread,
-        'managed': ManagedThread,
-    }
-
     LOOP_SLEEP = settings.INTERFACES_SELECTION_SLEEP
-    TO_USE_IF = None
-    USED_IF = []
 
-    _interfaces = {
-        'master': None,
-        'monitor': None,
-        'managed': None,
-    }
-    def __init__(self):
+    def __init__(self, to_use_if):
         super(InterfacesSelection, self).__init__()
-        self['master'] = Interface()
+        self._to_use_if = to_use_if
+        self._used_if = []
+        self._interfaces = {}
+        self['master'] = MasterInterface()
         self['monitor'] = Interface()
-        self['managed'] = Interface()
+        self['managed'] = ManagedInterface()
 
     def _run(self):
         for i in self._available_ifs():
             for label in ('master', 'monitor', 'managed'):
-                if self[label].dev is None and Interface(i).mode(label):
+                if self[label].dev is None and Interface(dev=i, init_th=False).mode(label):
                     self[label].dev = i
                     break
 
@@ -79,11 +41,7 @@ class InterfacesSelection(LoopThread):
         for label in ('master', 'monitor', 'managed'):
             if self[label].dev is not None and not self[label].ready.is_set():
                 logging.info('Using %s as the %s interface', self[label], label)
-                if label in InterfacesSelection.THREADS:
-                    self[label].thread = InterfacesSelection.THREADS[label](self[label])
-                    self[label].thread.start()
-                else:
-                    self[label].ready.set()
+                self[label].start()
 
         if not self['monitor'].dev:
             logging.critical('No monitor-able interface were found. Trying again in %s seconds', self.LOOP_SLEEP)
@@ -94,8 +52,12 @@ class InterfacesSelection(LoopThread):
         for i in iwconfig().split('\n\n'):
             if 'IEEE 802' in i:
                 dev = i.split('IEEE 802', 1)[0].strip()
-                if (not self.TO_USE_IF or dev in self.TO_USE_IF) and dev not in self.USED_IF and dev != settings.DUMMY_MANAGED_IF:
-                    self.USED_IF.append(dev)
+                if (
+                    (not self._to_use_if or dev in self._to_use_if)
+                    and dev not in self._used_if
+                    and dev != settings.DUMMY_MANAGED_IF
+                ):
+                    self._used_if.append(dev)
                     yield dev
 
     def __str__(self):
@@ -106,7 +68,3 @@ class InterfacesSelection(LoopThread):
 
     def __setitem__(self, item, val):
         self._interfaces[item] = val
-
-
-if not hasattr(shared, 'interfaces'):
-    shared.interfaces = InterfacesSelection()

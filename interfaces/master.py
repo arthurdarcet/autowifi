@@ -1,10 +1,5 @@
-from helpers import LoopThread
+from interfaces.generic import Interface
 
-class Thread(LoopThread):
+class MasterInterface(Interface):
     LOOP_SLEEP = 60
-    def __init__(self, interface):
-        super(Thread, self).__init__()
-        self.interface = interface
-
-    def _run(self):
-        return True
+    LABEL = 'Master'

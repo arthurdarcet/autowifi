@@ -1,8 +1,8 @@
 import os
 from argparse import ArgumentParser
 
-from aircrack.airodump import select_target_network
-from helpers import settings, shared
+from aircrack.airodump import Thread as AirodumpThread
+from helpers import settings
 from interfaces import InterfacesSelection
 from networks import update_local, update_remote
 
@@ -13,10 +13,12 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('-i', '--use-if', default='', help='List of comma separated interfaces the script can use. If empty all interfaces are used. Default: empty.')
     args = parser.parse_args()
-    shared.interfaces.TO_USE_IF = [dev.strip() for dev in args.use_if.split(',') if dev]
-    shared.interfaces.start()
 
-    select_target_network()
+    interfaces = InterfacesSelection([dev.strip() for dev in args.use_if.split(',') if dev])
+    interfaces.start()
+
+    airodump = AirodumpThread(interfaces['monitor'])
+    airodump.start()
 
 if __name__ == '__main__':
     main()

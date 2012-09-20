@@ -1,30 +1,30 @@
-import logging, urllib2
+import logging, threading, urllib2
 
-from helpers import LoopThread, settings, shared
+from helpers import settings
+from interfaces.generic import Interface
 from networks import update_db
 
-class Thread(LoopThread):
+class ManagedInterface(Interface):
     LOOP_SLEEP = 30
-    essid = None
+    LABEL = 'Managed'
 
-    def __init__(self, interface):
-        super(Thread, self).__init__()
-        self.interface = interface
+    def __init__(self):
+        super(ManagedInterface, self).__init__()
+        self.has_internet = threading.Event()
 
     def _run(self):
         if _check_connectivity():
-            if not shared.has_internet.is_set():
+            if not self.has_internet.is_set():
                 self.on_internet()
-            shared.has_internet.set()
-        elif not self.interface.dummy:
-            pass
+                self.has_internet.set()
+        elif not self.dummy:
+            self.has_internet.clear()
+            sleep(200)
             # TODO initiate connexion
-            # self.essid = 'blah'
-        self.interface.ready.set()
-        return shared.has_internet.is_set()
+        return self.has_internet.is_set()
 
     def on_internet(self):
-        logging.info('Internet connection found! (ESSID: %s)', self.interface.param('essid'))
+        logging.info('Internet connection found! (ESSID: %s)', self.param('essid'))
         update_db()
 
 
