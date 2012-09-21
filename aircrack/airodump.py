@@ -1,70 +1,66 @@
-import logging, re, threading
+import csv, logging, re, time
 from collections import defaultdict
-from time import sleep
 
-from sh import airodump_ng
+from sh import airodump_ng, glob, rm
+from storm.locals import And, Or
 
+from helpers import local_db, settings
 from networks import Network
 
 
-class Thread(threading.Thread):
-    def __init__(self, interface):
-        super(Thread, self).__init__()
-        self.interface = interface
+logger = logging.getLogger('airodump')
 
-    def run(self):
-        self.interface.ready.wait()
-        self.target_network = self.select_target_network()
+def select_target_network(interface):
+    rm(glob('data/*'), _ok_code=[0,1])
+    networks = None
+    while networks is None:
+        try:
+            airodump_process = airodump_ng('--encrypt', 'wep', '-w', 'data/scan', interface.dev, _err=lambda l: 0)
+            time.sleep(settings.AIRODUMP_SCAN_WAIT)
+            airodump_process.terminate()
+            networks = Reader('data/scan-01.csv').get_sorted_networks()
+        except UnicodeDecodeError, e:
+            logger.warning('Decoding the output of airodump failed, trying again from scratch (Error: %s)', e)
+    local = local_db()
+    for net in networks:
+        known_net = local.find(Network, And(Or(Network.bssid.like(u'_%'), Network.bssid == net['bssid']), Network.essid == net['essid']))
+        if known_net.is_empty():
+            return net
+    return None
 
-    def select_target_network(self):
-        parser = Parser()
-        airodump_ng('--encrypt', 'wep', self.interface.dev, _err=parser.feed_line)
-        sleep(30)
-        print parser._networks, parser._clients
-        print parser.get_sorted_networks()
 
-        return Network(None, None)
-
-
-class Parser(object):
-    DATA_LINE = re.compile(r'^ (\(not associated\)|[ABCDEF0-9]{2}(:[ABCDEF0-9]{2}){5})  .*$')
-    NETWORKS_HEADER = u' BSSID              PWR  Beacons    #Data, #/s  CH  MB   ENC  CIPHER AUTH ESSID\n'
-    CLIENTS_HEADER = u' BSSID              STATION            PWR   Rate    Lost  Packets  Probes     \n'
-
-    def __init__(self):
-        self._parsing_networks = False
+class Reader(object):
+    def __init__(self, csv_path):
         self._networks = defaultdict(lambda: {'clients': set()})
         self._clients = defaultdict(dict)
-
-    def feed_line(self, line):
-        if Parser.DATA_LINE.match(line) is not None:
-            logging.debug('Airodump: parsing data line {}', line)
-            bssid = line[1:18].strip()
-            if self._parsing_networks:
-                self[bssid].update({
-                    'bssid': bssid,
-                    'power': int(line[19:23]),
-                    'nb_beacons': int(line[24:32]),
-                    'nb_data': int(line[33:41]),
-                    'inj_speed': int(line[42:46]),
-                    'ch': int(line[47:50]),
-                    'essid': line[74:-1],  # TODO get full essid
-                })
-            else:
-                station = line[20:37]
-                self[bssid]['clients'].add(station)
-                self._clients[station].update({
-                    'station': station,
-                    'power': int(line[38:42]),
-                    'packets': int(line[58:67]),
-                    'lost': int(line[51:58]),
-                    'probes': line[67:-1],
-                })
-        elif line == Parser.NETWORKS_HEADER:
-            self._parsing_networks = True
-        elif line == Parser.CLIENTS_HEADER:
-            self._parsing_networks = False
-        return False
+        with open(csv_path, 'r') as f:
+            parsing_networks = True
+            for line in csv.reader(f):
+                if not line or line[0] == 'BSSID':
+                    continue
+                if line[0] == 'Station MAC':
+                    parsing_networks = False
+                    continue
+                logger.debug('Parsing data line %s', line)
+                line = map(unicode, line)
+                if parsing_networks:
+                    self[line[0]].update({
+                        'bssid': line[0],
+                        'power': int(line[8]),
+                        'nb_beacons': int(line[9]),
+                        'nb_data': int(line[10]),
+                        'ch': int(line[3]),
+                        'essid': line[13][1:],
+                    })
+                else:
+                    self[line[5].strip()]['clients'].add(line[0])
+                    self._clients[line[0]].update({
+                        'station': line[0],
+                        'bssid': line[5].strip(),
+                        'power': int(line[3]),
+                        'packets': int(line[4]),
+                        'probes': line[6].split(', '),
+                    })
 
     def __getitem__(self, item):
         return self._networks[item]
@@ -73,4 +69,4 @@ class Parser(object):
         self._networks[item] = value
 
     def get_sorted_networks(self):
-        return sorted(self._networks.values(), key=lambda net: -net['power'])
+        return sorted(filter(lambda d: 'bssid' in d, self._networks.values()), key=lambda net: -net['power'])

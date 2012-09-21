@@ -1,10 +1,8 @@
 import os
 from argparse import ArgumentParser
 
-from aircrack.airodump import Thread as AirodumpThread
-from helpers import settings
+from aircrack import Thread as AircrackThread
 from interfaces import Interface, InterfacesSelection
-from networks import update_local, update_remote
 
 
 def main():
@@ -17,8 +15,8 @@ def main():
     interfaces = InterfacesSelection([dev.strip() for dev in args.use_if.split(',') if dev])
     interfaces.start()
 
-    airodump = AirodumpThread(interfaces[Interface.MONITOR])
-    airodump.start()
+    aircrack = AircrackThread(interfaces[Interface.MONITOR])
+    aircrack.start()
 
 if __name__ == '__main__':
     main()

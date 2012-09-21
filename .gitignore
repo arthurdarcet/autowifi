@@ -1,3 +1,4 @@
 *.pyc
 local.db
 settings/my.py
+data/*
