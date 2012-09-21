@@ -16,35 +16,35 @@ class InterfacesSelection(LoopThread):
         self._to_use_if = to_use_if
         self._used_if = []
         self._interfaces = {}
-        self['master'] = MasterInterface()
-        self['monitor'] = Interface()
-        self['managed'] = ManagedInterface()
+        self[Interface.MASTER] = MasterInterface()
+        self[Interface.MONITOR] = Interface()
+        self[Interface.MANAGED] = ManagedInterface()
 
     def _run(self):
         for i in self._available_ifs():
-            for label in ('master', 'monitor', 'managed'):
+            for label in (Interface.MASTER, Interface.MONITOR, Interface.MANAGED):
                 if self[label].dev is None and Interface(dev=i, init_th=False).mode(label):
                     self[label].dev = i
                     break
 
-        if not self['monitor'].dev and self['master'].dev:
-            if self['master'].mode('monitor'):
+        if not self[Interface.MONITOR].dev and self[Interface.MASTER].dev:
+            if self[Interface.MASTER].mode(Interface.MONITOR):
                 logging.info('%s is supporting mode master, but no other interface support the mode monitor', self['master'])
-                self['monitor'].dev = self['master'].dev
-                self['master'].dev = None
+                self[Interface.MONITOR].dev = self[Interface.MASTER].dev
+                self[Interface.MASTER].dev = None
 
-        if self['managed'].dev is None and settings.DUMMY_MANAGED_IF is not None:
-            self['managed'].dev = settings.DUMMY_MANAGED_IF
-            self['managed'].dummy = True
+        if self[Interface.MANAGED].dev is None and settings.DUMMY_MANAGED_IF is not None:
+            self[Interface.MANAGED].dev = settings.DUMMY_MANAGED_IF
+            self[Interface.MANAGED].dummy = True
 
 
-        for label in ('master', 'monitor', 'managed'):
+        for label in (Interface.MASTER, Interface.MONITOR, Interface.MANAGED):
             if self[label].dev is not None and not self[label].ready.is_set():
                 logging.info('Using %s as the %s interface', self[label], label)
                 self[label].start()
 
-        if not self['monitor'].dev:
-            logging.critical('No monitor-able interface were found. Trying again in %s seconds', self.LOOP_SLEEP)
+        if not self[Interface.MONITOR].dev:
+            logging.critical('No monitor-capable interface were found. Trying again in %s seconds', self.LOOP_SLEEP)
 
         return True
 

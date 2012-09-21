@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 
 from aircrack.airodump import Thread as AirodumpThread
 from helpers import settings
-from interfaces import InterfacesSelection
+from interfaces import Interface, InterfacesSelection
 from networks import update_local, update_remote
 
 
@@ -17,7 +17,7 @@ def main():
     interfaces = InterfacesSelection([dev.strip() for dev in args.use_if.split(',') if dev])
     interfaces.start()
 
-    airodump = AirodumpThread(interfaces['monitor'])
+    airodump = AirodumpThread(interfaces[Interface.MONITOR])
     airodump.start()
 
 if __name__ == '__main__':

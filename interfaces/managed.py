@@ -6,7 +6,7 @@ from networks import update_db
 
 class ManagedInterface(Interface):
     LOOP_SLEEP = 30
-    LABEL = 'Managed'
+    LABEL = Interface.MANAGED
 
     def __init__(self):
         super(ManagedInterface, self).__init__()
@@ -32,5 +32,5 @@ def _check_connectivity():
     try:
         urllib2.urlopen(settings.HAS_INTERNET_REFERENCE, timeout=1)
         return True
-    except urllib2.URLError:
+    except:
         return False

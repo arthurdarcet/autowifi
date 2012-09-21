@@ -6,7 +6,11 @@ from helpers import LoopThread
 
 
 class Interface(LoopThread):
-    LABEL = 'Monitor'
+    MASTER = 'Master'
+    MONITOR = 'Monitor'
+    MANAGED = 'Managed'
+
+    LABEL = MONITOR
     dummy = False
 
     def __init__(self, dev=None, init_th=True):
@@ -22,7 +26,7 @@ class Interface(LoopThread):
         params = [p.split(':',1) for p in iwconfig(self.dev).split('  ') if ':' in p]
         for a,b in params:
             if a.lower() == param:
-                return b.lower()
+                return b
         raise KeyError
 
     def mode(self, mode=None):
