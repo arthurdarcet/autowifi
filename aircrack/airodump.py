@@ -1,7 +1,7 @@
-import csv, logging, re, time
+import csv, logging, time
 from collections import defaultdict
 
-from sh import airodump_ng, glob, rm
+from sh import airodump_ng
 from storm.locals import And, Or
 
 from helpers import local_db, settings
@@ -10,8 +10,7 @@ from networks import Network
 
 logger = logging.getLogger('airodump')
 
-def select_target_network(interface):
-    rm(glob('data/*'), _ok_code=[0,1])
+def select_target_network(interface, exclude=set()):
     networks = None
     while networks is None:
         try:
@@ -22,11 +21,17 @@ def select_target_network(interface):
         except UnicodeDecodeError, e:
             logger.warning('Decoding the output of airodump failed, trying again from scratch (Error: %s)', e)
     local = local_db()
+    excluded = None
     for net in networks:
+        if net['bssid'] in exclude and excluded is None:
+            excluded = net
         known_net = local.find(Network, And(Or(Network.bssid.like(u'_%'), Network.bssid == net['bssid']), Network.essid == net['essid']))
         if known_net.is_empty():
             return net
-    return None
+    return excluded
+
+def airodump(ch, interface):
+    return airodump_ng('-c', ch, '-w', 'data/inj', interface.dev, _err=lambda l: 0)
 
 
 class Reader(object):

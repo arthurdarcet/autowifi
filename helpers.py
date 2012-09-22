@@ -13,6 +13,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 class LoopThread(threading.Thread):
     LOOP_SLEEP = -1
+    def __init__(self):
+        super(LoopThread, self).__init__()
+        self._terminated = False
     def _run(self):
         return True
     def _once(self):
@@ -23,10 +26,12 @@ class LoopThread(threading.Thread):
             self._once()
             return
         once = False
-        while True:
+        while not self._terminated:
             b = self._run()
             if not once:
                 self._once()
                 once = True
             if b:
                 sleep(self.LOOP_SLEEP)
+    def terminate(self):
+        self._terminated = True

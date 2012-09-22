@@ -10,6 +10,7 @@ from interfaces.master import MasterInterface
 
 class InterfacesSelection(LoopThread):
     LOOP_SLEEP = settings.INTERFACES_SELECTION_SLEEP
+    daemon = True
 
     def __init__(self, to_use_if):
         super(InterfacesSelection, self).__init__()
