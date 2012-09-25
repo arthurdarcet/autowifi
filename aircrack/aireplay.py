@@ -17,8 +17,7 @@ class _Thread(threading.Thread):
         self.start()
 
     def run(self):
-        self._process = aireplay_ng('-e', self.essid, '-h', settings.AIREPLAY_INJECTION_MAC, *self.args, _out=self._process_out)
-        self._process.join()
+        self._process = aireplay_ng('-e', self.essid, '-h', settings.AIREPLAY_INJECTION_MAC, *self.args, _err_to_out=True, _out=self._process_out)
 
     def _process_out(self, line):
         raise NotImplemented()
@@ -32,7 +31,7 @@ class Injection(_Thread):
     args = ['-3']
 
     def _process_out(self, line):
-        m = RESULTS.match(line)
+        m = Injection.RESULTS.match(line)
         if m is None:
             return
         self.read_packets = m.group(1)
@@ -54,13 +53,15 @@ class Fakeauth(_Thread):
     args = ['-1', settings.AIREPLAY_DELAY_BETWEEN_FAKE_AUTH, '-q', settings.AIREPLAY_DELAY_BETWEEN_KEEP_ALIVE]
 
     def _process_out(self, line):
-        if not line:
+        if not line or line == '\n':
             return
-        if SUCCESS.match(line) or KEEP_ALIVE.match(line):
-            logger.debug('Successful fakeauth :-)')
-            self.ready.set()
-        else:
-            logger.debug('Fakeauth not ok')
+        logger.debug('Fakeauth: Parsing line %r', line)
+        if Fakeauth.SUCCESS.match(line) or Fakeauth.KEEP_ALIVE.match(line):
+            if not self.ready.is_set():
+                logger.info('Successful fakeauth :-)')
+                self.ready.set()
+        elif self.ready.is_set():
+            logger.info('Fakeauth not ok')
             self.ready.clear()
 
 
@@ -68,7 +69,7 @@ class Deauth(_Thread):
     def __init__(self, essid, interface, client=None):
         self.args = ['-0', settings.AIREPLAY_DEAUTH_COUNT]
         if client is not None:
-            self.args.append('-c', client)
+            self.args.extend(['-c', client])
         super(Deauth, self).__init__(essid, interface)
 
     def _process_out(self, line):

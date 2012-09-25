@@ -11,10 +11,7 @@ def main():
     if os.getuid() != 0:
         raise Exception('Need to be root')
 
-    try:
-        from sh import aircrack_ng, airodump_ng, aireplay_ng
-    except ImportError:
-        raise Exception('aircrack_ng need to be installed')
+    from sh import aircrack_ng, airodump_ng, aireplay_ng, iwconfig, ifconfig
 
     parser = ArgumentParser()
     parser.add_argument('-i', '--use-if', default='', help='List of comma separated interfaces the script can use. If empty all interfaces are used. Default: empty.')

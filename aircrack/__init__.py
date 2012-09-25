@@ -3,7 +3,7 @@ import logging, time, threading
 from sh import aireplay_ng, airodump_ng
 
 from aircrack import Aircrack
-from aireplay import Fakeauth, Injection
+from aireplay import Deauth, Fakeauth, Injection
 from airodump import airodump, select_target_network
 from helpers import settings
 
@@ -53,9 +53,8 @@ class Thread(object):
         for client in self.target['clients']:
             Deauth(self.target['essid'], self.interface, client)
 
-        self.fakeauth_process = Fakeauth(self.target['essid'])
+        self.fakeauth_process = Fakeauth(self.target['essid'], self.interface)
         self.fakeauth_process.ready.wait()
-        self.aireplay_process.ready.wait()
 
         self.aircrack_process = Aircrack(self.target['essid'])
 

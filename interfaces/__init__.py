@@ -8,6 +8,8 @@ from interfaces.managed import ManagedInterface
 from interfaces.master import MasterInterface
 
 
+logger = logging.getLogger('interfaces')
+
 class InterfacesSelection(LoopThread):
     LOOP_SLEEP = settings.INTERFACES_SELECTION_SLEEP
     daemon = True
@@ -30,7 +32,7 @@ class InterfacesSelection(LoopThread):
 
         if not self[Interface.MONITOR].dev and self[Interface.MASTER].dev:
             if self[Interface.MASTER].mode(Interface.MONITOR):
-                logging.info('%s is supporting mode master, but no other interface support the mode monitor', self['master'])
+                logger.info('%s is supporting mode master, but no other interface support the mode monitor', self['master'])
                 self[Interface.MONITOR].dev = self[Interface.MASTER].dev
                 self[Interface.MASTER].dev = None
 
@@ -41,11 +43,11 @@ class InterfacesSelection(LoopThread):
 
         for label in (Interface.MASTER, Interface.MONITOR, Interface.MANAGED):
             if self[label].dev is not None and not self[label].ready.is_set():
-                logging.info('Using %s as the %s interface', self[label], label)
+                logger.info('Using %s as the %s interface', self[label], label)
                 self[label].start()
 
         if not self[Interface.MONITOR].dev:
-            logging.critical('No monitor-capable interface were found. Trying again in %s seconds', self.LOOP_SLEEP)
+            logger.critical('No monitor-capable interface were found. Trying again in %s seconds', self.LOOP_SLEEP)
 
         return True
 

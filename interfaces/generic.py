@@ -5,6 +5,8 @@ from sh import ifconfig, iwconfig
 from helpers import LoopThread
 
 
+logger = logging.getLogger('interfaces')
+
 class Interface(LoopThread):
     MASTER = 'Master'
     MONITOR = 'Monitor'
@@ -42,4 +44,4 @@ class Interface(LoopThread):
 
     def _once(self):
         self.ready.set()
-        logging.debug('%s interface is ready', self.LABEL)
+        logger.debug('%s interface is ready', self.LABEL)
